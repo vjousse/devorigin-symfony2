@@ -1,0 +1,6 @@
+homepage:
+    pattern:  /
+    defaults: { _controller: FoundationBundle:Default:index }
+
+hello:
+    resource: DevoriginBundle/Resources/config/routing.yml
