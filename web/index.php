@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__.'/../hello/HelloKernel.php';
+require_once __DIR__.'/../devorigin/DevoriginKernel.php';
 
-$kernel = new HelloKernel('prod', false);
+$kernel = new DevoriginKernel('prod', false);
 $kernel->handle()->send();
