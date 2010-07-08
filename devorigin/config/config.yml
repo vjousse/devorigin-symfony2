@@ -4,3 +4,6 @@ parameters:
 kernel.config: ~
 web.config: ~
 web.templating: ~
+
+doctrine.orm: ~
+

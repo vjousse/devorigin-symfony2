@@ -7,3 +7,11 @@ web.config:
 zend.logger:
     priority: info
     path:     %kernel.root_dir%/logs/%kernel.environment%.log
+
+doctrine.dbal:
+    driver:   PDOMySql
+    dbname:   devorigin_sf2
+    host: 127.0.0.1
+    user:     root
+    password: root
+    port: 8889

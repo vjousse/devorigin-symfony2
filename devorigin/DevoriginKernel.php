@@ -16,6 +16,7 @@ use Symfony\Framework\DoctrineMongoDBBundle\DoctrineMongoDBBundle;
 use Symfony\Framework\PropelBundle\PropelBundle;
 use Symfony\Framework\TwigBundle\TwigBundle;
 use Application\DevoriginBundle\DevoriginBundle;
+use Bundle\NewsBundle\NewsBundle;
 
 class DevoriginKernel extends Kernel
 {
@@ -37,6 +38,7 @@ class DevoriginKernel extends Kernel
             //new PropelBundle(),
             //new TwigBundle(),
             new DevoriginBundle(),
+            new NewsBundle(),
         );
 
         if ($this->isDebug()) {
