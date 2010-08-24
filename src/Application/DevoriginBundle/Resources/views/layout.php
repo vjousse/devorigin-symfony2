@@ -6,6 +6,7 @@
     <title><?php $view['slots']->output('title', 'Création de sites Internet - Le Mans') ?></title>
   </head>
   <body>
+
     <div id="templatemo_header_wrapper">
       <div id="templatemo_header">
 
@@ -42,7 +43,7 @@
           <?php $view->slots->output('_content') ?>
 
           <div class="margin_bottom_40"></div>
-          <div class="cleaner"></div>
+          <?php echo $view['tag']->tag('div.cleaner'); ?>
         </div>
 
 

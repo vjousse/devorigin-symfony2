@@ -29,6 +29,7 @@ class DevoriginKernel extends Kernel
             //new Symfony\Bundle\TwigBundle\TwigBundle(),
             new Application\DevoriginBundle\DevoriginBundle(),
             new Bundle\NewsBundle\NewsBundle(),
+            new Bundle\TagHelperBundle\TagHelperBundle(),
         );
 
         if ($this->isDebug()) {

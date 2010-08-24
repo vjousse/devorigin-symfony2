@@ -10,6 +10,8 @@ web.templating:
     escaping:       htmlspecialchars
     #assets_version: SomeVersionScheme
 
+tag.config: ~
+
 ## Twig Configuration
 #twig.config:
 #    auto_reload: true
