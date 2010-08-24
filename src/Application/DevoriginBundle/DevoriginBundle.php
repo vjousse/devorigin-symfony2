@@ -2,7 +2,7 @@
 
 namespace Application\DevoriginBundle;
 
-use Symfony\Foundation\Bundle\Bundle;
+use Symfony\Framework\Bundle\Bundle;
 
 class DevoriginBundle extends Bundle
 {

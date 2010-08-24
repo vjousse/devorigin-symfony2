@@ -2,8 +2,7 @@
 
 namespace Bundle\NewsBundle;
 
-use Symfony\Foundation\Bundle\Bundle;
-use Symfony\Components\DependencyInjection\ContainerInterface;
+use Symfony\Framework\Bundle\Bundle;
 
 class NewsBundle extends Bundle
 {
