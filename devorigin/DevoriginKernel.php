@@ -2,21 +2,11 @@
 
 require_once __DIR__.'/../src/autoload.php';
 
-use Symfony\Foundation\Kernel;
-use Symfony\Components\DependencyInjection\Loader\YamlFileLoader as ContainerLoader;
-use Symfony\Components\Routing\Loader\YamlFileLoader as RoutingLoader;
+use Symfony\Framework\Kernel;
+use Symfony\Component\DependencyInjection\Loader\LoaderInterface;
 
-use Symfony\Foundation\Bundle\KernelBundle;
-use Symfony\Framework\FoundationBundle\FoundationBundle;
-use Symfony\Framework\ZendBundle\ZendBundle;
-use Symfony\Framework\SwiftmailerBundle\SwiftmailerBundle;
-use Symfony\Framework\DoctrineBundle\DoctrineBundle;
-use Symfony\Framework\DoctrineMigrationsBundle\DoctrineMigrationsBundle;
-use Symfony\Framework\DoctrineMongoDBBundle\DoctrineMongoDBBundle;
-use Symfony\Framework\PropelBundle\PropelBundle;
-use Symfony\Framework\TwigBundle\TwigBundle;
-use Application\DevoriginBundle\DevoriginBundle;
-use Bundle\NewsBundle\NewsBundle;
+//use Application\DevoriginBundle\DevoriginBundle;
+//use Bundle\NewsBundle\NewsBundle;
 
 class DevoriginKernel extends Kernel
 {
@@ -28,17 +18,17 @@ class DevoriginKernel extends Kernel
     public function registerBundles()
     {
         $bundles = array(
-            new KernelBundle(),
-            new FoundationBundle(),
-            new ZendBundle(),
-            new SwiftmailerBundle(),
-            new DoctrineBundle(),
-            //new DoctrineMigrationsBundle(),
-            //new DoctrineMongoDBBundle(),
-            //new PropelBundle(),
-            //new TwigBundle(),
-            new DevoriginBundle(),
-            new NewsBundle(),
+            new Symfony\Framework\KernelBundle(),
+            new Symfony\Bundle\FrameworkBundle\FrameworkBundle(),
+            new Symfony\Bundle\ZendBundle\ZendBundle(),
+            new Symfony\Bundle\SwiftmailerBundle\SwiftmailerBundle(),
+            new Symfony\Bundle\DoctrineBundle\DoctrineBundle(),
+            //new Symfony\Bundle\DoctrineMigrationsBundle\DoctrineMigrationsBundle(),
+            //new Symfony\Bundle\DoctrineMongoDBBundle\DoctrineMongoDBBundle(),
+            //new Symfony\Bundle\PropelBundle\PropelBundle(),
+            //new Symfony\Bundle\TwigBundle\TwigBundle(),
+            new Application\DevoriginBundle\DevoriginBundle(),
+            new Bundle\NewsBundle\NewsBundle(),
         );
 
         if ($this->isDebug()) {
@@ -52,21 +42,20 @@ class DevoriginKernel extends Kernel
         return array(
             'Application'        => __DIR__.'/../src/Application',
             'Bundle'             => __DIR__.'/../src/Bundle',
-            'Symfony\\Framework' => __DIR__.'/../src/vendor/symfony/src/Symfony/Framework',
+            'Symfony\\Bundle' => __DIR__.'/../src/vendor/symfony/src/Symfony/Bundle',
         );
     }
 
-    public function registerContainerConfiguration()
+    public function registerContainerConfiguration(LoaderInterface $loader)
     {
-        $loader = new ContainerLoader($this->getBundleDirs());
+        // use YAML for configuration
+        // comment to use another configuration format
+        $loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.yml');
 
-        return $loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.yml');
-    }
+        // uncomment to use XML for configuration
+        //$loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.xml');
 
-    public function registerRoutes()
-    {
-        $loader = new RoutingLoader($this->getBundleDirs());
-
-        return $loader->load(__DIR__.'/config/routing.yml');
+        // uncomment to use PHP for configuration
+        //$loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.php');
     }
 }
