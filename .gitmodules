@@ -1,0 +1,3 @@
+[submodule "src/Bundle/TagHelperBundle"]
+	path = src/Bundle/TagHelperBundle
+	url = git@github.com:vjousse/TagHelperBundle.git
