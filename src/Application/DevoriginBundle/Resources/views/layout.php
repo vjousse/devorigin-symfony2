@@ -2,8 +2,8 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <link href="<?php echo $view->assets->getUrl('css/style.css') ?>" rel="stylesheet" type="text/css" />
-    <title><?php $view->slots->output('title', 'Création de sites Internet - Le Mans') ?></title>
+    <link href="<?php echo $view['assets']->getUrl('css/style.css') ?>" rel="stylesheet" type="text/css" />
+    <title><?php $view['slots']->output('title', 'Création de sites Internet - Le Mans') ?></title>
   </head>
   <body>
     <div id="templatemo_header_wrapper">
