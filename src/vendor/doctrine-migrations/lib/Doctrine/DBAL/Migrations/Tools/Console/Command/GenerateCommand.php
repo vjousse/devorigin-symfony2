@@ -21,10 +21,10 @@
  
 namespace Doctrine\DBAL\Migrations\Tools\Console\Command;
 
-use Symfony\Components\Console\Input\InputInterface,
-    Symfony\Components\Console\Output\OutputInterface,
-    Symfony\Components\Console\Input\InputArgument,
-    Symfony\Components\Console\Input\InputOption,
+use Symfony\Component\Console\Input\InputInterface,
+    Symfony\Component\Console\Output\OutputInterface,
+    Symfony\Component\Console\Input\InputArgument,
+    Symfony\Component\Console\Input\InputOption,
     Doctrine\DBAL\Migrations\MigrationException,
     Doctrine\DBAL\Migrations\Configuration\Configuration;
 
@@ -65,7 +65,6 @@ class Version<version> extends AbstractMigration
         $this
             ->setName('migrations:generate')
             ->setDescription('Generate a blank migration class.')
-            ->addOption('configuration', null, InputOption::PARAMETER_OPTIONAL, 'The path to a migrations configuration file.')
             ->addOption('editor-cmd', null, InputOption::PARAMETER_OPTIONAL, 'Open file with this command upon creation.')
             ->setHelp(<<<EOT
 The <info>%command.name%</info> command generates a blank migration class:
@@ -77,6 +76,8 @@ You can optionally specify a <comment>--editor-cmd</comment> option to open the 
     <info>%command.full_name% --editor-cmd=mate</info>
 EOT
         );
+
+        parent::configure();
     }
 
     public function execute(InputInterface $input, OutputInterface $output)

@@ -21,10 +21,10 @@
  
 namespace Doctrine\DBAL\Migrations\Tools\Console\Command;
 
-use Symfony\Components\Console\Input\InputInterface,
-    Symfony\Components\Console\Output\OutputInterface,
-    Symfony\Components\Console\Input\InputArgument,
-    Symfony\Components\Console\Input\InputOption,
+use Symfony\Component\Console\Input\InputInterface,
+    Symfony\Component\Console\Output\OutputInterface,
+    Symfony\Component\Console\Input\InputArgument,
+    Symfony\Component\Console\Input\InputOption,
     Doctrine\ORM\Tools\SchemaTool,
     Doctrine\DBAL\Migrations\Configuration\Configuration;
 
@@ -45,8 +45,6 @@ class DiffCommand extends GenerateCommand
         $this
             ->setName('migrations:diff')
             ->setDescription('Generate a migration by comparing your current database to your mapping information.')
-            ->addOption('configuration', null, InputOption::PARAMETER_OPTIONAL, 'The path to a migrations configuration file.')
-            ->addOption('editor-cmd', null, InputOption::PARAMETER_OPTIONAL, 'Open file with this command upon creation.')
             ->setHelp(<<<EOT
 The <info>%command.name%</info> command generates a migration by comparing your current database to your mapping information:
 
@@ -57,6 +55,8 @@ You can optionally specify a <comment>--editor-cmd</comment> option to open the 
     <info>%command.full_name% --editor-cmd=mate</info>
 EOT
         );
+
+        parent::configure();
     }
 
     public function execute(InputInterface $input, OutputInterface $output)

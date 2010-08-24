@@ -37,7 +37,7 @@ class YamlDriver extends AbstractFileDriver
      *
      * @var string
      */
-    protected $_fileExtension = '.dcm.yml';
+    protected $fileExtension = '.dcm.yml';
 
     /**
      * {@inheritdoc}
@@ -67,7 +67,7 @@ class YamlDriver extends AbstractFileDriver
         }
         if (isset($element['indexes'])) {
             foreach($element['indexes'] as $index) {
-                $class->addIndex($index['keys'], $index['options']);
+                $class->addIndex($index['keys'], isset($index['options']) ? $index['options'] : array());
             }
         }
         if (isset($element['inheritanceType'])) {
@@ -86,36 +86,41 @@ class YamlDriver extends AbstractFileDriver
         if (isset($element['discriminatorMap'])) {
             $class->setDiscriminatorMap($element['discriminatorMap']);
         }
+        if (isset($element['changeTrackingPolicy'])) {
+            $class->setChangeTrackingPolicy(constant('Doctrine\ODM\MongoDB\Mapping\ClassMetadata::CHANGETRACKING_'
+                    . strtoupper($element['changeTrackingPolicy'])));
+        }
         if (isset($element['fields'])) {
             foreach ($element['fields'] as $fieldName => $mapping) {
+                if (is_string($mapping)) {
+                    $type = $mapping;
+                    $mapping = array();
+                    $mapping['type'] = $type;
+                }
                 if ( ! isset($mapping['fieldName'])) {
                     $mapping['fieldName'] = $fieldName;
                 }
-                $class->mapField($mapping);
+                $this->addFieldMapping($class, $mapping);
             }
         }
         if (isset($element['embedOne'])) {
             foreach ($element['embedOne'] as $fieldName => $embed) {
-                $mapping = $this->_getMappingFromEmbed($fieldName, $embed, 'one');
-                $class->mapField($mapping);
+                $this->addMappingFromEmbed($class, $fieldName, $embed, 'one');
             }
         }
         if (isset($element['embedMany'])) {
             foreach ($element['embedMany'] as $fieldName => $embed) {
-                $mapping = $this->_getMappingFromEmbed($fieldName, $embed, 'many');
-                $class->mapField($mapping);
+                $this->addMappingFromEmbed($class, $fieldName, $embed, 'many');
             }
         }
         if (isset($element['referenceOne'])) {
             foreach ($element['referenceOne'] as $fieldName => $reference) {
-                $mapping = $this->_getMappingFromReference($fieldName, $reference, 'one');
-                $class->mapField($mapping);
+                $this->addMappingFromReference($class, $fieldName, $reference, 'one');
             }
         }
         if (isset($element['referenceMany'])) {
             foreach ($element['referenceMany'] as $fieldName => $reference) {
-                $mapping = $this->_getMappingFromReference($fieldName, $reference, 'many');
-                $class->mapField($mapping);
+                $this->addMappingFromReference($class, $fieldName, $reference, 'many');
             }
         }
         if (isset($element['lifecycleCallbacks'])) {
@@ -127,32 +132,59 @@ class YamlDriver extends AbstractFileDriver
         }
     }
 
-    private function _getMappingFromEmbed($fieldName, $embed, $type)
+    private function addFieldMapping(ClassMetadata $class, $mapping)
     {
-        $mapping = array(
-            'name'           => $fieldName,
-            'embedded'       => true,
-            'type'           => $type,
-            'targetDocument' => $embed['targetDocument'],
-        );
-        return $mapping;
+        $keys = null;
+        $name = isset($mapping['name']) ? $mapping['name'] : $mapping['fieldName'];
+        if (isset($mapping['index'])) {
+            $keys = array(
+                $name => isset($mapping['index']['order']) ? $mapping['index']['order'] : 'asc'
+            );
+        }
+        if (isset($mapping['unique'])) {
+            $keys = array(
+                $name => isset($mapping['unique']['order']) ? $mapping['unique']['order'] : 'asc'
+            );
+        }
+        if ($keys !== null) {
+            $options = array();
+            if (isset($mapping['index'])) {
+                $options = $mapping['index'];
+            } elseif (isset($mapping['unique'])) {
+                $options = $mapping['unique'];
+                $options['unique'] = true;
+            }
+            $class->addIndex($keys, $options);
+        }
+        $class->mapField($mapping);
     }
 
-    private function _getMappingFromReference($fieldName, $reference, $type)
+    private function addMappingFromEmbed(ClassMetadata $class, $fieldName, $embed, $type)
+    {
+        $mapping = array(
+            'cascade'        => isset($embed['cascade']) ? $embed['cascade'] : null,
+            'type'           => $type,
+            'embedded'       => true,
+            'targetDocument' => isset($embed['targetDocument']) ? $embed['targetDocument'] : null,
+            'fieldName'           => $fieldName,
+        );
+        $this->addFieldMapping($class, $mapping);
+    }
+
+    private function addMappingFromReference(ClassMetadata $class, $fieldName, $reference, $type)
     {
         $mapping = array(
             'cascade'        => isset($reference['cascade']) ? $reference['cascade'] : null,
             'type'           => $type,
             'reference'      => true,
-            'targetDocument' => $reference['targetDocument'],
-            'name'           => $fieldName,
-            'strategy'         => (isset($reference['strategy'])) ? $reference['strategy'] : 'set',
+            'targetDocument' => isset($reference['targetDocument']) ? $reference['targetDocument'] : null,
+            'fieldName'           => $fieldName,
         );
-        return $mapping;
+        $this->addFieldMapping($class, $mapping);
     }
 
-    protected function _loadMappingFile($file)
+    protected function loadMappingFile($file)
     {
-        return \Symfony\Components\Yaml\Yaml::load($file);
+        return \Symfony\Component\Yaml\Yaml::load($file);
     }
 }

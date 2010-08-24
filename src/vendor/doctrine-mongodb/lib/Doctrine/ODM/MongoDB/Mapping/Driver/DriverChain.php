@@ -20,6 +20,7 @@
 namespace Doctrine\ODM\MongoDB\Mapping\Driver;
 
 use Doctrine\ODM\MongoDB\Mapping\ClassMetadata;
+use Doctrine\ODM\MongoDB\MongoDBException;
 
 /**
  * The DriverChain allows you to add multiple other mapping drivers for
@@ -37,7 +38,7 @@ class DriverChain implements Driver
     /**
      * @var array
      */
-    private $_drivers = array();
+    private $drivers = array();
 
     /**
      * Add a nested driver.
@@ -47,7 +48,7 @@ class DriverChain implements Driver
      */
     public function addDriver(Driver $nestedDriver, $namespace)
     {
-        $this->_drivers[$namespace] = $nestedDriver;
+        $this->drivers[$namespace] = $nestedDriver;
     }
 
     /**
@@ -57,7 +58,7 @@ class DriverChain implements Driver
      */
     public function getDrivers()
     {
-        return $this->_drivers;
+        return $this->drivers;
     }
 
     /**
@@ -65,11 +66,48 @@ class DriverChain implements Driver
      */
     public function loadMetadataForClass($className, ClassMetadata $class)
     {
-        foreach ($this->_drivers as $namespace => $driver) {
+        foreach ($this->drivers as $namespace => $driver) {
             if (strpos($className, $namespace) === 0) {
                 $driver->loadMetadataForClass($className, $class);
                 return;
             }
         }
+
+        throw MongoDBException::classIsNotAValidDocument($className);
+    }
+
+
+    /**
+     * Gets the names of all mapped classes known to this driver.
+     *
+     * @return array The names of all mapped classes known to this driver.
+     */
+    public function getAllClassNames()
+    {
+        $classNames = array();
+        foreach ($this->drivers AS $driver) {
+            $classNames = array_merge($classNames, $driver->getAllClassNames());
+        }
+        return $classNames;
+    }
+
+    /**
+     * Whether the class with the specified name should have its metadata loaded.
+     *
+     * This is only the case for non-transient classes either mapped as an Document or MappedSuperclass.
+     *
+     * @param string $className
+     * @return boolean
+     */
+    public function isTransient($className)
+    {
+        foreach ($this->drivers AS $namespace => $driver) {
+            if (strpos($className, $namespace) === 0) {
+                return $driver->isTransient($className);
+            }
+        }
+
+        // class isTransient, i.e. not an document or mapped superclass
+        return true;
     }
 }

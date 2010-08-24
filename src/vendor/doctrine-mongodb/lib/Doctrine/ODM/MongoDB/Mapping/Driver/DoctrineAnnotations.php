@@ -46,23 +46,36 @@ final class DiscriminatorField extends Annotation
     public $fieldName;
 }
 final class DiscriminatorMap extends Annotation {}
+final class DiscriminatorValue extends Annotation {}
 
-final class Index extends Annotation
+final class Indexes extends Annotation {}
+class Index extends Annotation
 {
     public $keys = array();
+    public $name;
+    public $dropDups;
+    public $background;
+    public $safe;
+    public $order;
+    public $unique = false;
     public $options = array();
 }
+final class UniqueIndex extends Index
+{
+    public $unique = true;
+}
 
-final class Id extends Annotation
+class Field extends Annotation
+{
+    public $name;
+    public $type = 'string';
+    public $nullable = false;
+}
+final class Id extends Field
 {
     public $id = true;
     public $type = 'id';
     public $custom = false;
-}
-class Field extends Annotation
-{
-    public $type = 'string';
-    public $nullable = false;
 }
 final class Hash extends Field
 {
@@ -128,28 +141,25 @@ final class Increment extends Field
 final class Collection extends Field
 {
     public $type = 'collection';
+    public $strategy = 'pushPull'; // pushPull, set
 }
 final class EmbedOne extends Field
 {
     public $type = 'one';
     public $embedded = true;
     public $targetDocument;
-}
-final class Embed extends Field
-{
-    public $embedded = true;
-    public $targetDocument;
+    public $discriminatorField;
+    public $discriminatorMap;
+    public $cascade;
 }
 final class EmbedMany extends Field
 {
     public $type = 'many';
     public $embedded = true;
     public $targetDocument;
-}
-final class Reference extends Field
-{
-    public $reference = true;
-    public $targetDocument;
+    public $discriminatorField;
+    public $discriminatorMap;
+    public $strategy = 'pushPull'; // pushPull, set
     public $cascade;
 }
 final class ReferenceOne extends Field
@@ -157,6 +167,8 @@ final class ReferenceOne extends Field
     public $type = 'one';
     public $reference = true;
     public $targetDocument;
+    public $discriminatorField;
+    public $discriminatorMap;
     public $cascade;
 }
 final class ReferenceMany extends Field
@@ -164,14 +176,20 @@ final class ReferenceMany extends Field
     public $type = 'many';
     public $reference = true;
     public $targetDocument;
+    public $discriminatorField;
+    public $discriminatorMap;
     public $cascade;
-    public $strategy = 'set';
+    public $strategy = 'pushPull'; // pushPull, set
 }
-final class Transient extends Annotation {}
-final class NotSaved extends Annotation {}
+class NotSaved extends Field {}
+final class Distance extends Field {
+    public $distance = true;
+}
 final class AlsoLoad extends Annotation {
     public $name;
 }
+final class ChangeTrackingPolicy extends Annotation {}
+
 /* Annotations for lifecycle callbacks */
 final class HasLifecycleCallbacks extends Annotation {}
 final class PrePersist extends Annotation {}
@@ -180,4 +198,5 @@ final class PreUpdate extends Annotation {}
 final class PostUpdate extends Annotation {}
 final class PreRemove extends Annotation {}
 final class PostRemove extends Annotation {}
+final class PreLoad extends Annotation {}
 final class PostLoad extends Annotation {}

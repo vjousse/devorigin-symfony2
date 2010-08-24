@@ -19,6 +19,8 @@
 
 namespace Doctrine\ODM\MongoDB\Mapping;
 
+use Doctrine\ODM\MongoDB\MongoDBException;
+
 /**
  * A <tt>ClassMetadata</tt> instance holds all the object-document mapping metadata
  * of a document and it's references.
@@ -61,6 +63,29 @@ class ClassMetadata
     const INHERITANCE_TYPE_COLLECTION_PER_CLASS = 3;
 
     /**
+     * DEFERRED_IMPLICIT means that changes of entities are calculated at commit-time
+     * by doing a property-by-property comparison with the original data. This will
+     * be done for all entities that are in MANAGED state at commit-time.
+     *
+     * This is the default change tracking policy.
+     */
+    const CHANGETRACKING_DEFERRED_IMPLICIT = 1;
+
+    /**
+     * DEFERRED_EXPLICIT means that changes of entities are calculated at commit-time
+     * by doing a property-by-property comparison with the original data. This will
+     * be done only for entities that were explicitly saved (through persist() or a cascade).
+     */
+    const CHANGETRACKING_DEFERRED_EXPLICIT = 2;
+
+    /**
+     * NOTIFY means that Doctrine relies on the entities sending out notifications
+     * when their properties change. Such entity classes must implement
+     * the <tt>NotifyPropertyChanged</tt> interface.
+     */
+    const CHANGETRACKING_NOTIFY = 3;
+
+    /**
      * READ-ONLY: The name of the mongo database the document is mapped to.
      */
     public $db;
@@ -69,6 +94,21 @@ class ClassMetadata
      * READ-ONLY: The name of the monge collection the document is mapped to.
      */
     public $collection;
+
+    /**
+     * READ-ONLY: If the collection should be a fixed size.
+     */
+    public $collectionCapped;
+
+    /**
+     * READ-ONLY: If the collection is fixed size, its size in bytes.
+     */
+    public $collectionSize;
+
+    /**
+     * READ-ONLY: If the collection is fixed size, the maximum number of elements to store in the collection.
+     */
+    public $collectionMax;
 
     /**
      * READ-ONLY: The field name of the document identifier.
@@ -80,6 +120,12 @@ class ClassMetadata
      * document is a file and should be stored on the MongoGridFS.
      */
     public $file;
+
+    /**
+     * READ-ONLY: The field that stores the calculated distance when performing geo spatial
+     * queries.
+     */
+    public $distance;
 
     /**
      * READ-ONLY: The array of indexes for the document collection.
@@ -149,7 +195,7 @@ class ClassMetadata
      * 
      * @var object
      */
-    private $_prototype;
+    private $prototype;
 
     /**
      * READ-ONLY: The inheritance mapping type used by the class.
@@ -174,6 +220,20 @@ class ClassMetadata
      * @var array
      */
     public $fieldMappings = array();
+
+    /**
+     * READ-ONLY: Array of fields to also load with a given method.
+     *
+     * @var array
+     */
+    public $alsoLoadMethods = array();
+
+    /**
+     * READ-ONLY: The registered lifecycle callbacks for documents of this class.
+     *
+     * @var array
+     */
+    public $lifecycleCallbacks = array();
 
     /**
      * READ-ONLY: The discriminator value of this class.
@@ -227,6 +287,13 @@ class ClassMetadata
     public $isEmbeddedDocument = false;
 
     /**
+     * READ-ONLY: The policy used for change-tracking on entities of this class.
+     *
+     * @var integer
+     */
+    public $changeTrackingPolicy = self::CHANGETRACKING_DEFERRED_IMPLICIT;
+
+    /**
      * Initializes a new ClassMetadata instance that will hold the object-document mapping
      * metadata of the class with the given name.
      *
@@ -238,25 +305,7 @@ class ClassMetadata
         $this->rootDocumentName = $documentName;
         $this->reflClass = new \ReflectionClass($documentName);
         $this->namespace = $this->reflClass->getNamespaceName();
-
-        $e = explode('\\', $documentName);
-        if (count($e) > 1) {
-            $e = array_map(function($value) {
-                return strtolower($value);
-            }, $e);
-            $collection = array_pop($e);
-        } else {
-            $collection = strtolower($documentName);
-        }
-        $this->setCollection($collection);
-
-        foreach ($this->reflClass->getProperties() as $property) {
-            $fieldName = $property->getName();
-            $mapping = array(
-                'fieldName' => $fieldName
-            );
-            $this->mapField($mapping);
-        }
+        $this->setCollection($this->reflClass->getShortName());
     }
 
     /**
@@ -303,6 +352,16 @@ class ClassMetadata
     }
 
     /**
+     * Checks whether a mapped field is inherited from an entity superclass.
+     *
+     * @return boolean TRUE if the field is inherited, FALSE otherwise.
+     */
+    public function isInheritedField($fieldName)
+    {
+        return isset($this->fieldMappings[$fieldName]['inherited']);
+    }
+
+    /**
      * Registers a custom repository class for the document class.
      *
      * @param string $mapperClassName  The class name of the custom mapper.
@@ -319,10 +378,14 @@ class ClassMetadata
      * @param string $event The lifecycle event.
      * @param Document $document The Document on which the event occured.
      */
-    public function invokeLifecycleCallbacks($lifecycleEvent, $document)
+    public function invokeLifecycleCallbacks($lifecycleEvent, $document, array $arguments = null)
     {
         foreach ($this->lifecycleCallbacks[$lifecycleEvent] as $callback) {
-            $document->$callback();
+            if ($arguments !== null) {
+                call_user_func_array(array($document, $callback), $arguments);
+            } else {
+                $document->$callback();
+            }
         }
     }
 
@@ -384,6 +447,9 @@ class ClassMetadata
         if ( ! isset($discriminatorField['name']) && isset($discriminatorField['fieldName'])) {
             $discriminatorField['name'] = $discriminatorField['fieldName'];
         }
+        if (isset($this->fieldMappings[$discriminatorField['name']])) {
+            throw MongoDBException::duplicateFieldMapping($this->name, $discriminatorField['name']);
+        }
         $this->discriminatorField = $discriminatorField;
     }
 
@@ -403,6 +469,9 @@ class ClassMetadata
             if ($this->name == $className) {
                 $this->discriminatorValue = $value;
             } else {
+                if ( ! class_exists($className)) {
+                    throw MongoDBException::invalidClassInDiscriminatorMap($className, $this->name);
+                }
                 if (is_subclass_of($className, $this->name)) {
                     $this->subClasses[] = $className;
                 }
@@ -411,16 +480,34 @@ class ClassMetadata
     }
 
     /**
+     * Sets the discriminator value for this class.
+     * Used for JOINED/SINGLE_TABLE inheritance and multiple document types in a single
+     * collection.
+     *
+     * @param string $value
+     */
+    public function setDiscriminatorValue($value)
+    {
+        $this->discriminatorMap[$value] = $this->name;
+        $this->discriminatorValue = $value;
+    }
+
+    /**
      * Add a index for this Document.
      *
      * @param array $keys Array of keys for the index.
      * @param array $options Array of options for the index.
      */
-    public function addIndex($keys, $options)
+    public function addIndex($keys, array $options = array())
     {
         $this->indexes[] = array(
             'keys' => array_map(function($value) {
-                return strtolower($value) == 'asc' ? 1 : -1;
+                $lower = strtolower($value);
+                if ($lower === 'asc' || $lower === 'desc') {
+                    return $lower === 'asc' ? 1 : -1;
+                } else {
+                    return $value;
+                }
             }, $keys),
             'options' => $options
         );
@@ -444,6 +531,46 @@ class ClassMetadata
     public function getReflectionClass()
     {
         return $this->reflClass;
+    }
+
+    /**
+     * Sets the change tracking policy used by this class.
+     *
+     * @param integer $policy
+     */
+    public function setChangeTrackingPolicy($policy)
+    {
+        $this->changeTrackingPolicy = $policy;
+    }
+
+    /**
+     * Whether the change tracking policy of this class is "deferred explicit".
+     *
+     * @return boolean
+     */
+    public function isChangeTrackingDeferredExplicit()
+    {
+        return $this->changeTrackingPolicy == self::CHANGETRACKING_DEFERRED_EXPLICIT;
+    }
+
+    /**
+     * Whether the change tracking policy of this class is "deferred implicit".
+     *
+     * @return boolean
+     */
+    public function isChangeTrackingDeferredImplicit()
+    {
+        return $this->changeTrackingPolicy == self::CHANGETRACKING_DEFERRED_IMPLICIT;
+    }
+
+    /**
+     * Whether the change tracking policy of this class is "notify".
+     *
+     * @return boolean
+     */
+    public function isChangeTrackingNotify()
+    {
+        return $this->changeTrackingPolicy == self::CHANGETRACKING_NOTIFY;
     }
 
     /**
@@ -522,9 +649,79 @@ class ClassMetadata
      *
      * @param string $collection The collection name.
      */
-    public function setCollection($collection)
+    public function setCollection($name)
     {
-        $this->collection = $collection;
+        if (is_array($name)) {
+            if ( ! isset($name['name'])) {
+                throw new \InvalidArgumentException('A name key is required when passing an array to setCollection()');
+            }
+            $this->collectionCapped = isset($name['capped']) ? $name['capped'] : false;
+            $this->collectionSize = isset($name['size']) ? $name['size'] : 0;
+            $this->collectionMax = isset($name['max']) ? $name['max'] : 0;
+            $this->collection = $name['name'];
+        } else {
+            $this->collection = $name;
+        }
+    }
+
+    /**
+     * Get whether or not the documents collection is capped.
+     *
+     * @return boolean
+     */
+    public function getCollectionCapped()
+    {
+        return $this->collectionCapped;
+    }
+
+    /**
+     * Set whether or not the documents collection is capped.
+     *
+     * @param boolean $bool
+     */
+    public function setCollectionCapped($bool)
+    {
+        $this->collectionCapped = $bool;
+    }
+
+    /**
+     * Get the collection size
+     *
+     * @return integer
+     */
+    public function getCollectionSize()
+    {
+        return $this->collectionSize;
+    }
+
+    /**
+     * Set the collection size.
+     *
+     * @param integer $size
+     */
+    public function setCollectionSize($size)
+    {
+        $this->collectionSize = $size;
+    }
+
+    /**
+     * Get the collection max.
+     *
+     * @return integer
+     */
+    public function getCollectionMax()
+    {
+        return $this->collectionMax;
+    }
+
+    /**
+     * Set the collection max.
+     *
+     * @param integer $max
+     */
+    public function setCollectionMax($max)
+    {
+        $this->collectionMax = $max;
     }
 
     /**
@@ -558,34 +755,67 @@ class ClassMetadata
     }
 
     /**
+     * Set the field name that stores the grid file.
+     *
+     * @param string $file
+     */
+    public function setFile($file)
+    {
+        $this->file = $file;
+    }
+
+    /**
+     * Returns the distance field name.
+     *
+     * @return string $distance The distance field name.
+     */
+    public function getDistance()
+    {
+        return $this->distance;
+    }
+
+    /**
+     * Set the field name that stores the distance.
+     *
+     * @param string $distance
+     */
+    public function setDistance($distance)
+    {
+        $this->file = $distance;
+    }
+
+    /**
      * Map a field.
      *
      * @param array $mapping The mapping information.
      */
     public function mapField(array $mapping)
     {
-        if (isset($mapping['name'])) {
+        if ( ! isset($mapping['fieldName']) && isset($mapping['name'])) {
             $mapping['fieldName'] = $mapping['name'];
         }
-        $mapping['name'] = $mapping['fieldName'];
-
-        // unset transient fields
-        if (isset($mapping['transient']) && $mapping['transient']) {
-            unset($this->fieldMappings[$mapping['fieldName']]);
-            return;
+        if ( ! isset($mapping['name'])) {
+            $mapping['name'] = $mapping['fieldName'];
         }
-
-        if ($mapping['fieldName'] === 'id') {
-            $mapping['id'] = true;
-            $mapping['type'] = isset($mapping['type']) ? $mapping['type'] : 'id';
+        if ( ! isset($mapping['fieldName'])) {
+            throw MongoDBException::missingFieldName($this->name);
         }
-
-        if ( ! isset($mapping['type'])) {
-            $mapping['type'] = 'string';
+        if (isset($this->fieldMappings[$mapping['fieldName']])) {
+            throw MongoDBException::duplicateFieldMapping($this->name, $mapping['fieldName']);
         }
-
+        if ($this->discriminatorField['name'] === $mapping['fieldName']) {
+            throw MongoDBException::duplicateFieldMapping($this->name, $mapping['fieldName']);
+        }
         if (isset($mapping['targetDocument']) && strpos($mapping['targetDocument'], '\\') === false && strlen($this->namespace)) {
             $mapping['targetDocument'] = $this->namespace . '\\' . $mapping['targetDocument'];
+        }
+
+        if (isset($mapping['discriminatorMap'])) {
+            foreach ($mapping['discriminatorMap'] as $key => $class) {
+                if (strpos($class, '\\') === false && strlen($this->namespace)) {
+                    $mapping['discriminatorMap'][$key] = $this->namespace . '\\' . $class;
+                }
+            }
         }
 
         if ($this->reflClass->hasProperty($mapping['fieldName'])) {
@@ -594,8 +824,11 @@ class ClassMetadata
             $this->reflFields[$mapping['fieldName']] = $reflProp;
         }
 
+        if (isset($mapping['cascade']) && is_string($mapping['cascade'])) {
+            $mapping['cascade'] = array($mapping['cascade']);
+        }
         if (isset($mapping['cascade']) && in_array('all', (array) $mapping['cascade'])) {
-            unset($mapping['all']);
+            unset($mapping['cascade']);
             $default = true;
         } else {
             $default = false;
@@ -610,10 +843,15 @@ class ClassMetadata
                 $mapping['isCascade' . ucfirst($cascade)] = true;
             }
         }
+        unset($mapping['cascade']);
         if (isset($mapping['file']) && $mapping['file'] === true) {
             $this->file = $mapping['fieldName'];
         }
+        if (isset($mapping['distance']) && $mapping['distance'] === true) {
+            $this->distance = $mapping['fieldName'];
+        }
         if (isset($mapping['id']) && $mapping['id'] === true) {
+            $mapping['type'] = isset($mapping['type']) ? $mapping['type'] : 'id';
             $this->identifier = $mapping['fieldName'];
         }
         if ( ! isset($mapping['nullable'])) {
@@ -683,6 +921,18 @@ class ClassMetadata
     }
 
     /**
+     * INTERNAL:
+     * Adds a field mapping without completing/validating it.
+     * This is mainly used to add inherited field mappings to derived classes.
+     *
+     * @param array $mapping
+     */
+    public function addInheritedFieldMapping(array $fieldMapping)
+    {
+        $this->fieldMappings[$fieldMapping['fieldName']] = $fieldMapping;
+    }
+
+    /**
      * Checks whether the class has a mapped association with the given field name.
      *
      * @param string $fieldName
@@ -719,6 +969,32 @@ class ClassMetadata
                 $this->fieldMappings[$fieldName]['type'] === 'many';
     }
 
+    /**
+     * Checks whether the class has a mapped embedded document for the specified field
+     * and if yes, checks whether it is a single-valued association (to-one).
+     *
+     * @param string $fieldName
+     * @return boolean TRUE if the association exists and is single-valued, FALSE otherwise.
+     */
+    public function isSingleValuedEmbed($fieldName)
+    {
+        return isset($this->fieldMappings[$fieldName]['embedded']) &&
+                $this->fieldMappings[$fieldName]['type'] === 'one';
+    }
+
+    /**
+     * Checks whether the class has a mapped embedded document for the specified field
+     * and if yes, checks whether it is a collection-valued association (to-many).
+     *
+     * @param string $fieldName
+     * @return boolean TRUE if the association exists and is collection-valued, FALSE otherwise.
+     */
+    public function isCollectionValuedEmbed($fieldName)
+    {
+        return isset($this->fieldMappings[$fieldName]['embedded']) &&
+                $this->fieldMappings[$fieldName]['type'] === 'many';
+    }
+
     public function getPHPIdentifierValue($id)
     {
         $idType = $this->fieldMappings[$this->identifier]['type'];
@@ -740,12 +1016,7 @@ class ClassMetadata
     public function setIdentifierValue($document, $id)
     {
         $id = $this->getPHPIdentifierValue($id);
-        if (isset($this->reflFields[$this->identifier])) {
-            $this->reflFields[$this->identifier]->setValue($document, $id);
-        } else {
-            $identifier = $this->identifier;
-            $document->$identifier = $id;
-        }
+        $this->reflFields[$this->identifier]->setValue($document, $id);
     }
 
     /**
@@ -756,12 +1027,7 @@ class ClassMetadata
      */
     public function getIdentifierValue($document)
     {
-        if (isset($this->reflFields[$this->identifier])) {
-            return (string) $this->reflFields[$this->identifier]->getValue($document);
-        } else {
-            $identifier = $this->identifier;
-            return isset($document->$identifier) ? (string) $document->identifier : null;
-        }
+        return (string) $this->reflFields[$this->identifier]->getValue($document);
     }
 
     /**
@@ -786,11 +1052,7 @@ class ClassMetadata
      */
     public function setFieldValue($document, $field, $value)
     {
-        if (isset($this->reflFields[$field])) {
-            $this->reflFields[$field]->setValue($document, $value);
-        } else {
-            $document->$field = $value;
-        }
+        $this->reflFields[$field]->setValue($document, $value);
     }
 
     /**
@@ -801,11 +1063,46 @@ class ClassMetadata
      */
     public function getFieldValue($document, $field)
     {
-        if (isset($this->reflFields[$field])) {
-            return $this->reflFields[$field]->getValue($document);
-        } else {
-            return isset($document->$field) ? $document->$field : null;
+        return $this->reflFields[$field]->getValue($document);
+    }
+
+    /**
+     * Gets the mapping of a field.
+     *
+     * @param string $fieldName  The field name.
+     * @return array  The field mapping.
+     */
+    public function getFieldMapping($fieldName)
+    {
+        if ( ! isset($this->fieldMappings[$fieldName])) {
+            throw MongoDBException::mappingNotFound($this->name, $fieldName);
         }
+        return $this->fieldMappings[$fieldName];
+    }
+
+    /**
+     * Check if the field is not null.
+     *
+     * @param string $fieldName  The field name
+     * @return boolean  TRUE if the field is not null, FALSE otherwise.
+     */
+    public function isNullable($fieldName)
+    {
+        $mapping = $this->getFieldMapping($fieldName);
+        if ($mapping !== false) {
+            return isset($mapping['nullable']) && $mapping['nullable'] == true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks whether the document has a discriminator field and value configured.
+     *
+     * @return boolean
+     */
+    public function hasDiscriminator()
+    {
+        return $this->discriminatorField && $this->discriminatorValue ? true : false;
     }
 
     /**
@@ -839,6 +1136,22 @@ class ClassMetadata
     }
 
     /**
+     * Sets the mapped subclasses of this class.
+     *
+     * @param array $subclasses The names of all mapped subclasses.
+     */
+    public function setSubclasses(array $subclasses)
+    {
+        foreach ($subclasses as $subclass) {
+            if (strpos($subclass, '\\') === false && strlen($this->namespace)) {
+                $this->subClasses[] = $this->namespace . '\\' . $subclass;
+            } else {
+                $this->subClasses[] = $subclass;
+            }
+        }
+    }
+
+    /**
      * Sets the parent class names.
      * Assumes that the class names in the passed array are in the order:
      * directParent -> directParentParent -> directParentParentParent ... -> root.
@@ -851,11 +1164,21 @@ class ClassMetadata
         }
     }
 
-    public function setAllowCustomId($boolean)
+    /**
+     * Set whether or not a custom id is allowed.
+     *
+     * @param bool $bool
+     */
+    public function setAllowCustomId($bool)
     {
-        $this->allowCustomID = (bool) $boolean;
+        $this->allowCustomID = (bool) $bool;
     }
 
+    /**
+     * Get whether or not a custom id is allowed.
+     *
+     * @param bool $bool
+     */
     public function getAllowCustomID()
     {
         return $this->allowCustomID;
@@ -868,10 +1191,10 @@ class ClassMetadata
      */
     public function newInstance()
     {
-        if ($this->_prototype === null) {
-            $this->_prototype = unserialize(sprintf('O:%d:"%s":0:{}', strlen($this->name), $this->name));
+        if ($this->prototype === null) {
+            $this->prototype = unserialize(sprintf('O:%d:"%s":0:{}', strlen($this->name), $this->name));
         }
-        return clone $this->_prototype;
+        return clone $this->prototype;
     }
 
     /**
@@ -898,8 +1221,16 @@ class ClassMetadata
             'db',
             'collection',
             'rootDocumentName',
-            'allowCustomID',
         );
+
+        // The rest of the metadata is only serialized if necessary.
+        if ($this->changeTrackingPolicy != self::CHANGETRACKING_DEFERRED_IMPLICIT) {
+            $serialized[] = 'changeTrackingPolicy';
+        }
+
+        if ($this->customRepositoryClassName) {
+            $serialized[] = 'customRepositoryClassName';
+        }
 
         if ($this->inheritanceType != self::INHERITANCE_TYPE_NONE) {
             $serialized[] = 'inheritanceType';
@@ -914,8 +1245,15 @@ class ClassMetadata
             $serialized[] = 'isMappedSuperclass';
         }
 
-        return $serialized;
+        if ($this->isEmbeddedDocument) {
+            $serialized[] = 'isEmbeddedDocument';
+        }
 
+        if ($this->lifecycleCallbacks) {
+            $serialized[] = 'lifecycleCallbacks';
+        }
+
+        return $serialized;
     }
 
     /**
@@ -925,10 +1263,26 @@ class ClassMetadata
      */
     public function __wakeup()
     {
+        // Restore ReflectionClass and properties
         $this->reflClass = new \ReflectionClass($this->name);
 
         foreach ($this->fieldMappings as $field => $mapping) {
-            $reflField = $this->reflClass->getProperty($field);
+            if (isset($mapping['declared'])) {
+                $reflField = new \ReflectionProperty($mapping['declared'], $field);
+            } else {
+                $reflField = $this->reflClass->getProperty($field);
+            }
+            $reflField->setAccessible(true);
+            $this->reflFields[$field] = $reflField;
+        }
+
+        foreach ($this->fieldMappings as $field => $mapping) {
+            if (isset($mapping['declared'])) {
+                $reflField = new \ReflectionProperty($mapping['declared'], $field);
+            } else {
+                $reflField = $this->reflClass->getProperty($field);
+            }
+
             $reflField->setAccessible(true);
             $this->reflFields[$field] = $reflField;
         }

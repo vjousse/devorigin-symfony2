@@ -91,6 +91,8 @@ class Lexer extends \Doctrine\Common\Lexer
     const T_FALSE               = 134;
     const T_ANY                 = 135;
     const T_NOT                 = 136;
+    const T_DISTINCT            = 137;
+    const T_FROM                = 138;
 
     /**
      * @inheritdoc
@@ -116,7 +118,7 @@ class Lexer extends \Doctrine\Common\Lexer
     /**
      * @inheritdoc
      */
-    protected function _getType(&$value)
+    protected function getType(&$value)
     {
         $type = self::T_NONE;
 
