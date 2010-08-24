@@ -2,7 +2,7 @@
 
 namespace Application\DevoriginBundle\Controller;
 
-use Symfony\Framework\FoundationBundle\Controller;
+use Symfony\Bundle\FrameworkBundle\Controller;
 
 class DevoriginController extends Controller
 {
