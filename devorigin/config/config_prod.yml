@@ -2,9 +2,11 @@ imports:
   - { resource: config.yml }
 
 doctrine.dbal:
-    driver:   PDOMySql
-    dbname:   devorigin_sf2_prod
-    host: 127.0.0.1
-    user:     root
-    password: root
-    port: 8889
+  connections:
+    default:
+      driver:   PDOMySql
+      dbname:   devorigin_sf2
+      host: 127.0.0.1
+      user:     root
+      password: root
+      port: ~

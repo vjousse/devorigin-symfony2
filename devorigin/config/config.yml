@@ -12,22 +12,10 @@ web.templating:
 
 tag.config: ~
 
-## Twig Configuration
-#twig.config:
-#    auto_reload: true
 
-## Doctrine Configuration
-#doctrine.dbal:
-#    dbname:   xxxxxxxx
-#    user:     xxxxxxxx
-#    password: ~
-#doctrine.orm: ~
 
-## Swiftmailer Configuration
-#swift.mailer:
-#    transport:  smtp
-#    encryption: ssl
-#    auth_mode:  login
-#    host:       smtp.gmail.com
-#    username:   xxxxxxxx
-#    password:   xxxxxxxx
+doctrine.orm:
+  default_entity_manager:   default
+  entity_managers:
+    default:
+      connection:           default
