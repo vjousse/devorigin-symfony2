@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\EventDispatcher\Event;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\ControllerNameConverter;
+use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 
 /*
  * This file is part of the Symfony framework.
@@ -66,22 +67,27 @@ class ControllerResolver extends BaseControllerResolver
             throw new \InvalidArgumentException(sprintf('Class "%s" does not exist.', $class));
         }
 
-        return array(new $class($this->container), $method);
+        $controller = new $class();
+        if ($controller instanceof ContainerAwareInterface) {
+            $controller->setContainer($this->container);
+        }
+
+        return array($controller, $method);
     }
 
     /**
      * Forwards the request to another controller.
      *
      * @param  string  $controller The controller name (a string like BlogBundle:Post:index)
-     * @param  array   $path       An array of path parameters
-     * @param  array   $query      An array of query parameters
+     * @param  array   $attributes An array of request attributes
+     * @param  array   $query      An array of request query parameters
      *
      * @return Response A Response instance
      */
-    public function forward($controller, array $path = array(), array $query = array())
+    public function forward($controller, array $attributes = array(), array $query = array())
     {
-        $path['_controller'] = $controller;
-        $subRequest = $this->container->getRequestService()->duplicate($query, null, $path);
+        $attributes['_controller'] = $controller;
+        $subRequest = $this->container->getRequestService()->duplicate($query, null, $attributes);
 
         return $this->container->get('kernel')->handle($subRequest, HttpKernelInterface::SUB_REQUEST);
     }
@@ -94,10 +100,10 @@ class ControllerResolver extends BaseControllerResolver
      *
      * Available options:
      *
-     *  * path: An array of path parameters (only when the first argument is a controller)
-     *  * query: An array of query parameters (only when the first argument is a controller)
+     *  * attributes: An array of request attributes (only when the first argument is a controller)
+     *  * query: An array of request query parameters (only when the first argument is a controller)
      *  * ignore_errors: true to return an empty string in case of an error
-     *  * alt: an alternative controller to execute in case of an error (can be a controller, a URI, or an array with the controller, the path arguments, and the query arguments)
+     *  * alt: an alternative controller to execute in case of an error (can be a controller, a URI, or an array with the controller, the attributes, and the query arguments)
      *  * standalone: whether to generate an esi:include tag or not when ESI is supported
      *  * comment: a comment to add when returning an esi:include tag
      *
@@ -109,9 +115,9 @@ class ControllerResolver extends BaseControllerResolver
     public function render($controller, array $options = array())
     {
         $options = array_merge(array(
-            'path'          => array(),
+            'attributes'    => array(),
             'query'         => array(),
-            'ignore_errors' => true,
+            'ignore_errors' => !$this->container->getParameter('kernel.debug'),
             'alt'           => array(),
             'standalone'    => false,
             'comment'       => '',
@@ -122,7 +128,7 @@ class ControllerResolver extends BaseControllerResolver
         }
 
         if ($this->esiSupport && $options['standalone']) {
-            $uri = $this->generateInternalUri($controller, $options['path'], $options['query']);
+            $uri = $this->generateInternalUri($controller, $options['attributes'], $options['query']);
 
             $alt = '';
             if ($options['alt']) {
@@ -137,10 +143,11 @@ class ControllerResolver extends BaseControllerResolver
         // controller or URI?
         if (0 === strpos($controller, '/')) {
             $subRequest = Request::create($controller, 'get', array(), $request->cookies->all(), array(), $request->server->all());
+            $subRequest->setSession($request->getSession());
         } else {
-            $options['path']['_controller'] = $controller;
-            $options['path']['_format'] = $request->getRequestFormat();
-            $subRequest = $request->duplicate($options['query'], null, $options['path']);
+            $options['attributes']['_controller'] = $controller;
+            $options['attributes']['_format'] = $request->getRequestFormat();
+            $subRequest = $request->duplicate($options['query'], null, $options['attributes']);
         }
 
         try {
@@ -155,7 +162,7 @@ class ControllerResolver extends BaseControllerResolver
             if ($options['alt']) {
                 $alt = $options['alt'];
                 unset($options['alt']);
-                $options['path'] = isset($alt[1]) ? $alt[1] : array();
+                $options['attributes'] = isset($alt[1]) ? $alt[1] : array();
                 $options['query'] = isset($alt[2]) ? $alt[2] : array();
 
                 return $this->render($alt[0], $options);
@@ -173,12 +180,12 @@ class ControllerResolver extends BaseControllerResolver
      * This method uses the "_internal" route, which should be available.
      *
      * @param string $controller A controller name to execute (a string like BlogBundle:Post:index), or a relative URI
-     * @param array  $path       An array of path parameters
-     * @param array  $query      An array of query parameters
+     * @param array  $attributes An array of request attributes
+     * @param array  $query      An array of request query parameters
      *
      * @return string An internal URI
      */
-    public function generateInternalUri($controller, array $path = array(), array $query = array())
+    public function generateInternalUri($controller, array $attributes = array(), array $query = array())
     {
         if (0 === strpos($controller, '/')) {
             return $controller;
@@ -186,7 +193,7 @@ class ControllerResolver extends BaseControllerResolver
 
         $uri = $this->container->getRouterService()->generate('_internal', array(
             'controller' => $controller,
-            'path'       => $path ? http_build_query($path) : 'none',
+            'path'       => $attributes ? http_build_query($attributes) : 'none',
             '_format'    => $this->container->getRequestService()->getRequestFormat(),
         ), true);
 

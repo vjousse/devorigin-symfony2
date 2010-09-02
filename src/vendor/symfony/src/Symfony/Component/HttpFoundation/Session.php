@@ -18,10 +18,9 @@ use Symfony\Component\HttpFoundation\SessionStorage\SessionStorageInterface;
  *
  * @author     Fabien Potencier <fabien.potencier@symfony-project.com>
  */
-class Session
+class Session implements \Serializable
 {
     protected $storage;
-    protected $locale;
     protected $attributes;
     protected $oldFlashes;
     protected $started;
@@ -38,6 +37,7 @@ class Session
         $this->storage = $storage;
         $this->options = $options;
         $this->attributes = array();
+        $this->started = false;
     }
 
     /**
@@ -51,13 +51,18 @@ class Session
 
         $this->storage->start();
 
-        $this->setAttributes($this->storage->read('_symfony2', array(
-            '_flash'   => array(),
-            '_locale'  => isset($this->options['default_locale']) ? $this->options['default_locale'] : 'en',
-        )));
+        $this->attributes = $this->storage->read('_symfony2');
 
-        // flag current flash to be removed at shutdown
-        $this->oldFlashes = array_flip(array_keys($this->getFlashMessages()));
+        if (!isset($this->attributes['_flash'])) {
+            $this->attributes['_flash'] = array();
+        }
+
+        if (!isset($this->attributes['_locale'])) {
+            $this->attributes['_locale'] = isset($this->options['default_locale']) ? $this->options['default_locale'] : 'en';
+        }
+
+        // flag current flash messages to be removed at shutdown
+        $this->oldFlashes = array_flip(array_keys($this->attributes['_flash']));
 
         $this->started = true;
     }
@@ -71,6 +76,10 @@ class Session
      */
     public function has($name)
     {
+        if (false === $this->started) {
+            $this->start();
+        }
+
         return array_key_exists($name, $this->attributes);
     }
 
@@ -84,6 +93,10 @@ class Session
      */
     public function get($name, $default = null)
     {
+        if (false === $this->started) {
+            $this->start();
+        }
+
         return array_key_exists($name, $this->attributes) ? $this->attributes[$name] : $default;
     }
 
@@ -109,6 +122,10 @@ class Session
      */
     public function getAttributes()
     {
+        if (false === $this->started) {
+            $this->start();
+        }
+
         return $this->attributes;
     }
 
@@ -133,7 +150,7 @@ class Session
      */
     public function remove($name)
     {
-        if (array_key_exists($this->attributes, $name)) {
+        if (array_key_exists($name, $this->attributes)) {
             if (false === $this->started) {
                 $this->start();
             }
@@ -149,7 +166,11 @@ class Session
      */
     public function getLocale()
     {
-        return $this->getAttribute('_locale');
+        if (false === $this->started) {
+            $this->start();
+        }
+
+        return $this->attributes['_locale'];
     }
 
     /**
@@ -159,13 +180,19 @@ class Session
      */
     public function setLocale($locale)
     {
-        if ($this->locale != $locale) {
-            $this->setAttribute('_locale', $locale);
+        if (false === $this->started) {
+            $this->start();
         }
+
+        $this->attributes['_locale'] = $locale;
     }
 
     public function getFlashMessages()
     {
+        if (false === $this->started) {
+            $this->start();
+        }
+
         return $this->attributes['_flash'];
     }
 
@@ -180,7 +207,11 @@ class Session
 
     public function getFlash($name, $default = null)
     {
-        return $this->hasFlash($name) ? $this->attributes['_flash'][$name] : $default;
+        if (false === $this->started) {
+            $this->start();
+        }
+
+        return array_key_exists($name, $this->attributes['_flash']) ? $this->attributes['_flash'][$name] : $default;
     }
 
     public function setFlash($name, $value)
@@ -195,15 +226,35 @@ class Session
 
     public function hasFlash($name)
     {
+        if (false === $this->started) {
+            $this->start();
+        }
+
         return array_key_exists($name, $this->attributes['_flash']);
+    }
+
+    public function save()
+    {
+        if (true === $this->started) {
+            $this->attributes['_flash'] = array_diff_key($this->attributes['_flash'], $this->oldFlashes);
+            $this->storage->write('_symfony2', $this->attributes);
+        }
     }
 
     public function __destruct()
     {
-        if (true === $this->started) {
-            $this->attributes['_flash'] = array_diff_key($this->attributes['_flash'], $this->oldFlashes);
+        $this->save();
+    }
 
-            $this->storage->write('_symfony2', $this->attributes);
-        }
+    public function serialize()
+    {
+        return serialize(array($this->storage, $this->options));
+    }
+
+    public function unserialize($serialized)
+    {
+        list($this->storage, $this->options) = unserialize($serialized);
+        $this->attributes = array();
+        $this->started = false;
     }
 }

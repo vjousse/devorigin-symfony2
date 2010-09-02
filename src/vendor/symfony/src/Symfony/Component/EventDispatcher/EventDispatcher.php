@@ -26,33 +26,36 @@ class EventDispatcher
      *
      * @param string  $name      An event name
      * @param mixed   $listener  A PHP callable
+     * @param integer $priority  The priority (between -10 and 10 -- defaults to 0)
      */
-    public function connect($name, $listener)
+    public function connect($name, $listener, $priority = 0)
     {
-        if (!isset($this->listeners[$name])) {
-            $this->listeners[$name] = array();
+        if (!isset($this->listeners[$name][$priority])) {
+            $this->listeners[$name][$priority] = array();
         }
 
-        $this->listeners[$name][] = $listener;
+        $this->listeners[$name][$priority][] = $listener;
     }
 
     /**
      * Disconnects a listener for a given event name.
      *
-     * @param string   $name      An event name
-     * @param mixed    $listener  A PHP callable
+     * @param string     $name      An event name
+     * @param mixed|null $listener  A PHP callable or null to disconnect all listeners
      *
      * @return mixed false if listener does not exist, null otherwise
      */
-    public function disconnect($name, $listener)
+    public function disconnect($name, $listener = null)
     {
         if (!isset($this->listeners[$name])) {
             return false;
         }
 
-        foreach ($this->listeners[$name] as $i => $callable) {
-            if ($listener === $callable) {
-                unset($this->listeners[$name][$i]);
+        foreach ($this->listeners[$name] as $priority => $callables) {
+            foreach ($callables as $i => $callable) {
+                if ($listener === $callable) {
+                    unset($this->listeners[$name][$priority][$i]);
+                }
             }
         }
     }
@@ -120,11 +123,7 @@ class EventDispatcher
      */
     public function hasListeners($name)
     {
-        if (!isset($this->listeners[$name])) {
-            $this->listeners[$name] = array();
-        }
-
-        return (boolean) count($this->listeners[$name]);
+        return (Boolean) count($this->getListeners($name));
     }
 
     /**
@@ -140,6 +139,13 @@ class EventDispatcher
             return array();
         }
 
-        return $this->listeners[$name];
+        $listeners = array();
+        $all = $this->listeners[$name];
+        ksort($all);
+        foreach ($all as $l) {
+            $listeners = array_merge($listeners, $l);
+        }
+
+        return $listeners;
     }
 }

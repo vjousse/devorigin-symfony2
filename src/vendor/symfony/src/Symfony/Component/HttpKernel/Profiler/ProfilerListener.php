@@ -24,29 +24,68 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 class ProfilerListener
 {
     protected $profiler;
+    protected $exception;
+    protected $onlyException;
 
-    public function __construct(Profiler $profiler)
+    /**
+     * Constructor.
+     *
+     * @param Profiler $profiler      A Profiler instance
+     * @param Boolean  $onlyException true if the profiler only collects data when an exception occurs, false otherwise
+     */
+    public function __construct(Profiler $profiler, $onlyException = false)
     {
         $this->profiler = $profiler;
+        $this->onlyException = $onlyException;
     }
 
     /**
-     * Registers a core.response listener.
+     * Registers a core.response and core.exception listeners.
      *
      * @param EventDispatcher $dispatcher An EventDispatcher instance
+     * @param integer         $priority   The priority
      */
-    public function register(EventDispatcher $dispatcher)
+    public function register(EventDispatcher $dispatcher, $priority = 0)
     {
-        $dispatcher->connect('core.response', array($this, 'handle'));
+        $dispatcher->connect('core.exception', array($this, 'handleException'), $priority);
+        $dispatcher->connect('core.response', array($this, 'handleResponse'), $priority);
     }
 
-    public function handle(Event $event, Response $response)
+    /**
+     * Handles the core.exception event.
+     *
+     * @param Event $event An Event instance
+     */
+    public function handleException(Event $event)
+    {
+        if (HttpKernelInterface::MASTER_REQUEST !== $event->getParameter('request_type')) {
+            return false;
+        }
+
+        $this->exception = $event->getParameter('exception');
+
+        return false;
+    }
+
+    /**
+     * Handles the core.response event.
+     *
+     * @param Event $event An Event instance
+     *
+     * @return Response $response A Response instance
+     */
+    public function handleResponse(Event $event, Response $response)
     {
         if (HttpKernelInterface::MASTER_REQUEST !== $event->getParameter('request_type')) {
             return $response;
         }
 
-        $this->profiler->collect($response);
+        if ($this->onlyException && null === $this->exception) {
+            return $response;
+        }
+
+        $this->profiler->collect($event->getParameter('request'), $response, $this->exception);
+        $this->exception = null;
 
         return $response;
     }

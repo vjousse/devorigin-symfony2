@@ -2,8 +2,10 @@
 
 namespace Symfony\Bundle\FrameworkBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller;
-use Symfony\Bundle\FrameworkBundle\Debug\ExceptionManager;
+use Symfony\Component\DependencyInjection\ContainerAware;
+use Symfony\Component\HttpKernel\Exception\FlattenException;
+use Symfony\Component\HttpKernel\Log\DebugLoggerInterface;
+use Symfony\Component\OutputEscaper\SafeDecorator;
 
 /*
  * This file is part of the Symfony framework.
@@ -19,24 +21,37 @@ use Symfony\Bundle\FrameworkBundle\Debug\ExceptionManager;
  *
  * @author     Fabien Potencier <fabien.potencier@symfony-project.com>
  */
-class ExceptionController extends Controller
+class ExceptionController extends ContainerAware
 {
     /**
      * Converts an Exception to a Response.
      *
-     * @param ExceptionManager $manager An ExceptionManager instance
+     * @param FlattenException     $exception A FlattenException instance
+     * @param DebugLoggerInterface $logger    A DebugLoggerInterface instance
+     * @param string               $format    The format to use for rendering (html, xml, ...)
+     * @param Boolean              $embedded  Whether the rendered Response will be embedded or not
      *
      * @throws \InvalidArgumentException When the exception template does not exist
      */
-    public function exceptionAction(ExceptionManager $manager)
+    public function exceptionAction(FlattenException $exception, DebugLoggerInterface $logger = null, $format = 'html', $embedded = false)
     {
-        $this['request']->setRequestFormat($manager->getFormat());
+        $this->container->get('request')->setRequestFormat($format);
 
-        $response = $this->render(
-            'FrameworkBundle:Exception:'.($this['kernel']->isDebug() ? 'exception' : 'error'),
-            array('manager' => $manager)
+        $currentContent = '';
+        while (false !== $content = ob_get_clean()) {
+            $currentContent .= $content;
+        }
+
+        $response = $this->container->get('templating')->renderResponse(
+            'FrameworkBundle:Exception:'.($this->container->get('kernel')->isDebug() ? 'exception' : 'error'),
+            array(
+                'exception'      => new SafeDecorator($exception),
+                'logger'         => $logger,
+                'currentContent' => $currentContent,
+                'embedded'       => $embedded,
+            )
         );
-        $response->setStatusCode($manager->getStatusCode());
+        $response->setStatusCode($exception->getStatusCode());
 
         return $response;
     }
