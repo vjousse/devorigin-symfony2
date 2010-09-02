@@ -54,28 +54,8 @@
           </div>
 
           <div class="w250_content">
-
-            <div class="latest_news">
-              <div class="header_04">6 Janvier 2010</div>
-              <div class="header_02"><a href="http://www.arnage.fr">Site de la ville d'Arnage</a></div>
-              <p>Le site de la ville d'Arnage est désormais <a href="http://www.arnage.fr">en ligne</a> !</p>
-            </div>
-
-            <div class="margin_bottom_20"></div>
-
-            <div class="latest_news">
-              <div class="header_04">20 Novembre 2009</div>
-              <div class="header_02"><a href="http://www.ville-rouillon.fr">Relooking du site de Rouillon</a></div>
-              <p>Le site de la ville de Rouillon est maintenant aux couleurs de la nouvelle charte graphique. N'hésitez pas à aller faire un <a href="http://www.ville-rouillon.fr">tour sur le site</a> pour voir le nouveau design.</p>
-            </div>
-
-            <div class="margin_bottom_20"></div>
-
-            <div class="latest_news">
-              <div class="header_04">6 Novembre 2009</div>
-              <div class="header_02"><a href="http://inscriptions.24heuresvelo.fr/">Inscriptions des 24 heures vélo</a></div>
-              <p>Les <a href="http://inscriptions.24heuresvelo.fr/">inscriptions pour les 24 heures vélo du Mans</a> 2010 sont maintenant ouvertes.</p>
-            </div>
+            
+            <?php $view['actions']->output('NewsBundle:News:list') ?>
 
           </div>
 
