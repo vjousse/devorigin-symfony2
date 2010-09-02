@@ -21,6 +21,20 @@ class News
     protected $title;
 
     /**
+     * @Column(type="text")
+     */
+    protected $content;
+
+
+    /**
+     * News creation date
+     *
+     * @Column(type="datetime")
+     */
+    protected $createdAt = null;
+
+
+    /**
      * Get id
      *
      * @return integer $id
@@ -49,4 +63,45 @@ class News
     {
         return $this->title;
     }
+
+    /**
+     * Set content
+     *
+     * @param string $content
+     */
+    public function setContent($content)
+    {
+        $this->content = $content;
+    }
+
+    /**
+     * Get content
+     *
+     * @return string $content
+     */
+    public function getContent()
+    {
+        return $this->content;
+    }
+
+    /**
+     * getCreatedAt
+     *
+     * @return \DateTime
+     */
+    public function getCreatedAt()
+    {
+        return $this->createdAt;
+    }
+
+    /**
+     * Set the repo creation date
+     *
+     * @return null
+     */
+    public function setCreatedAt(\DateTime $createdAt)
+    {
+        $this->createdAt = $createdAt;
+    }
+
 }
