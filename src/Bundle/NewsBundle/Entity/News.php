@@ -1,6 +1,6 @@
 <?php
 
-namespace Bundle\NewsBundle\Entities;
+namespace Bundle\NewsBundle\Entity;
 
 /**
  * @Entity
