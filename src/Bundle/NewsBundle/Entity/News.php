@@ -95,6 +95,20 @@ class News
     }
 
     /**
+     * getCreatedAtFormatted
+     *
+     * DateTime::format does not use locale informations ...
+     * have to use strftime instead and to set the default timezone somewhere
+     * (in the Bundle Kernel for exemple)
+     *
+     * @return string
+     */
+    public function getCreatedAtFormatted($format="d M y")
+    {
+        return strftime($format,$this->createdAt->getTimestamp());
+    }
+
+    /**
      * Set the repo creation date
      *
      * @return null
