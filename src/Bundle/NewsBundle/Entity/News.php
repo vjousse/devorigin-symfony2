@@ -103,7 +103,7 @@ class News
      *
      * @return string
      */
-    public function getCreatedAtFormatted($format="d M y")
+    public function getCreatedAtFormatted($format="%d %B %Y")
     {
         return strftime($format,$this->createdAt->getTimestamp());
     }
