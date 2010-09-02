@@ -1,3 +1,6 @@
 [submodule "src/Bundle/TagHelperBundle"]
 	path = src/Bundle/TagHelperBundle
 	url = git@github.com:vjousse/TagHelperBundle.git
+[submodule "src/vendor/symfony"]
+	path = src/vendor/symfony
+	url = git://github.com/fabpot/symfony.git
