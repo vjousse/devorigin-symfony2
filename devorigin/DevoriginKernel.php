@@ -30,6 +30,7 @@ class DevoriginKernel extends Kernel
             new Application\DevoriginBundle\DevoriginBundle(),
             new Bundle\NewsBundle\NewsBundle(),
             new Bundle\TagHelperBundle\TagHelperBundle(),
+            new Bundle\MenuBundle\MenuBundle(),
         );
 
         if ($this->isDebug()) {

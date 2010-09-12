@@ -7,7 +7,6 @@
 
     <parameters>
         <parameter key="menu.main.class">Application\DevoriginBundle\Menu\MainMenu</parameter>
-        <parameter key="templating.helper.menu.class">Bundle\MenuBundle\Templating\Helper\MenuHelper</parameter>
     </parameters>
 
     <services>

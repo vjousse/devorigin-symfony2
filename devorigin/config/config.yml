@@ -12,6 +12,7 @@ web.templating:
 
 tag.config: ~
 
+menu.templating: ~
 
 devorigin.config: ~
 
