@@ -5,7 +5,9 @@ namespace Bundle\NewsBundle\Entity;
 /**
  * @Entity
  * @Table(name="news")
+ * @Entity(repositoryClass="Bundle\NewsBundle\Entity\NewsRepository")
  */
+
 class News
 {
     /**
