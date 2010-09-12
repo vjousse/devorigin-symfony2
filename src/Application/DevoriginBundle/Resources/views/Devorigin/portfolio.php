@@ -1,4 +1,5 @@
 <?php $view->extend('DevoriginBundle::layout') ?>
+<?php $view['main_menu']['Réalisations']->setIsCurrent(true); ?>
 
 <h1>Sites internet</h1>
 

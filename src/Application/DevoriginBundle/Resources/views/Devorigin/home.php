@@ -1,4 +1,5 @@
 <?php $view->extend('DevoriginBundle::layout') ?>
+<?php $view['main_menu']['Accueil']->setIsCurrent(true); ?>
 
 <h1>Flexibilité et efficacité</h1>
 <p>Trouver le bon prestataire pour le bon projet n'est jamais chose facile. Il faut un prestataire <strong>techniquement solide</strong>, qui soit capable de <strong>comprendre</strong> et concrétiser les attentes des clients, tout en assurant un déploiement et un suivi efficace du produit.</p>
