@@ -14,5 +14,16 @@ use Doctrine\ORM\NoResultException;
 class NewsRepository extends EntityRepository
 {
 
+    public function findLatestNewsSortedBy($field, $order='desc', $nb = null)
+    {
+        $qb = $this->createQueryBuilder('n');
+        $qb->orderBy('n.'.$field, $order);
+        $query = $qb->getQuery();
+        if(null !== $nb) {
+            $query->setMaxResults($nb);
+        }
+
+        return $query->execute();
+    }
 
 }
