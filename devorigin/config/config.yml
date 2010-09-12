@@ -13,6 +13,7 @@ web.templating:
 tag.config: ~
 
 
+devorigin.config: ~
 
 doctrine.orm:
   default_entity_manager:   default

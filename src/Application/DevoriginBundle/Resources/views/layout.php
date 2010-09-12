@@ -22,7 +22,8 @@
     <div id="templatemo_menu_wrapper">
 
       <div id="templatemo_menu">
-
+        <?php echo $view['main_menu']->render(); ?>
+          <!--
         <ul>
           <li><a href="#" class="current"><span></span>Accueil</a></li>
           <li><a href="#"><span></span>Réalisations</a></li>
@@ -30,6 +31,7 @@
           <li><a href="#"><span></span>Blog</a></li>
           <li><a href="#"><span></span>Contact</a></li>
         </ul>
+          -->
       </div> <!-- end of menu -->
     </div> <!-- end of menu wrapper -->
 
