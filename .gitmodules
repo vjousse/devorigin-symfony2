@@ -4,3 +4,6 @@
 [submodule "src/vendor/symfony"]
 	path = src/vendor/symfony
 	url = git://github.com/fabpot/symfony.git
+[submodule "src/Bundle/MenuBundle"]
+	path = src/Bundle/MenuBundle
+	url = git://github.com/knplabs/MenuBundle.git
