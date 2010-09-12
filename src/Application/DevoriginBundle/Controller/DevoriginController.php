@@ -11,8 +11,9 @@ class DevoriginController extends Controller
         return $this->render('DevoriginBundle:Devorigin:home');
     }
 
-    public function indexAction($name)
+    public function portfolioAction()
     {
-        return $this->render('DevoriginBundle:Devorigin:index', array('name' => $name));
+        return $this->render('DevoriginBundle:Devorigin:portfolio');
     }
+
 }

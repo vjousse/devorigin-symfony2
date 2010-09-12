@@ -2,5 +2,5 @@ homepage:
     pattern:  /
     defaults: { _controller: DevoriginBundle:Devorigin:home }
 
-hello:
+devorigin:
     resource: DevoriginBundle/Resources/config/routing.yml

@@ -1,3 +1,4 @@
-hello:
-    pattern:  /hello/:name
-    defaults: { _controller: DevoriginBundle:Devorigin:index }
+portfolio:
+    pattern:  /realisations
+    defaults: { _controller: DevoriginBundle:Devorigin:portfolio }
+
