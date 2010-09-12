@@ -159,13 +159,19 @@ img {
 	outline: none;
 }
 
-#templatemo_menu li a:hover, #templatemo_menu li .current {
+#templatemo_menu li a:hover, #templatemo_menu li.current {
 	position: relative;
 	color: #ffffff;
 	background: url(../images/templatemo_menu_right.jpg) top right no-repeat;
 }
 
-#templatemo_menu li a:hover span, #templatemo_menu li .current span	{
+#templatemo_menu li a:hover, #templatemo_menu li.current a {
+	position: relative;
+	color: #ffffff;
+	background: url(../images/templatemo_menu_right.jpg) top right no-repeat;
+}
+
+#templatemo_menu li a:hover span, #templatemo_menu li.current span	{
 	position: absolute;
 	display: inline-block;
 	width: 11px;
