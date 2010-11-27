@@ -2,8 +2,9 @@
 
 require_once __DIR__.'/../src/autoload.php';
 
-use Symfony\Framework\Kernel;
+use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\DependencyInjection\Loader\LoaderInterface;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 //use Application\DevoriginBundle\DevoriginBundle;
 //use Bundle\NewsBundle\NewsBundle;
@@ -18,11 +19,13 @@ class DevoriginKernel extends Kernel
     public function registerBundles()
     {
         $bundles = array(
-            new Symfony\Framework\KernelBundle(),
             new Symfony\Bundle\FrameworkBundle\FrameworkBundle(),
+
+            // enable third-party bundles
             new Symfony\Bundle\ZendBundle\ZendBundle(),
-            new Symfony\Bundle\SwiftmailerBundle\SwiftmailerBundle(),
             new Symfony\Bundle\DoctrineBundle\DoctrineBundle(),
+            new Symfony\Bundle\DoctrineMigrationsBundle\DoctrineMigrationsBundle(),
+            new Symfony\Bundle\TwigBundle\TwigBundle(),
             //new Symfony\Bundle\DoctrineMigrationsBundle\DoctrineMigrationsBundle(),
             //new Symfony\Bundle\DoctrineMongoDBBundle\DoctrineMongoDBBundle(),
             //new Symfony\Bundle\PropelBundle\PropelBundle(),
@@ -49,16 +52,33 @@ class DevoriginKernel extends Kernel
         );
     }
 
+
+    /**
+     * Returns the config_{environment}_local.yml file or
+     * the default config_{environment}.yml if it does not exist.
+     * Useful to override development password.
+     *
+     * @param string Environment
+     * @return The configuration file path
+     */
+    protected function getLocalConfigurationFile($environment)
+    {
+        $basePath = __DIR__.'/config/config_';
+        $file = $basePath.$environment.'_local.yml';
+
+        if(\file_exists($file)) {
+            return $file;
+        }
+
+        return $basePath.$environment.'.yml';
+    }
+
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
-        // use YAML for configuration
-        // comment to use another configuration format
-        $loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.yml');
+        $container = new ContainerBuilder();
 
-        // uncomment to use XML for configuration
-        //$loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.xml');
+        $loader->load($this->getLocalConfigurationFile($this->getEnvironment()));
 
-        // uncomment to use PHP for configuration
-        //$loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.php');
+        return $container;
     }
 }

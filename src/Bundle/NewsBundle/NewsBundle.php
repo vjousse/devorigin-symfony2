@@ -2,7 +2,7 @@
 
 namespace Bundle\NewsBundle;
 
-use Symfony\Framework\Bundle\Bundle;
+use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 class NewsBundle extends Bundle
 {

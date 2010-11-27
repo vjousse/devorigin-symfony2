@@ -1,14 +1,12 @@
-kernel.config:
+app.config:
     charset:       UTF-8
     error_handler: null
-
-web.config:
     router:     { resource: "%kernel.root_dir%/config/routing.yml" }
     validation: { enabled: true, annotations: true }
+    templating:
+        escaping: htmlspecialchars
 
-web.templating:
-    escaping:       htmlspecialchars
-    #assets_version: SomeVersionScheme
+twig.config: ~
 
 tag.config: ~
 
