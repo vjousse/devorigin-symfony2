@@ -7,3 +7,6 @@
 [submodule "src/Bundle/MenuBundle"]
 	path = src/Bundle/MenuBundle
 	url = git://github.com/knplabs/MenuBundle.git
+[submodule "Twig"]
+	path = src/vendor/Twig
+	url = git://github.com/fabpot/Twig.git
